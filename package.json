@@ -1,0 +1,161 @@
+{
+	"name": "cloudflare-copilot",
+	"publisher": "your-publisher",
+	"displayName": "Cloudflare AI for GitHub Copilot Chat",
+	"description": "Use Cloudflare Workers AI models directly in GitHub Copilot Chat with multi-account routing and configurable reasoning.",
+	"icon": "assets/logo.png",
+	"version": "0.2.0",
+	"engines": {
+		"vscode": "^1.104.0"
+	},
+	"categories": [
+		"AI",
+		"Chat"
+	],
+	"galleryBanner": {
+		"color": "#100f11",
+		"theme": "dark"
+	},
+	"homepage": "https://developers.cloudflare.com/workers-ai/",
+	"license": "MIT",
+	"contributes": {
+		"languageModelChatProviders": [
+			{
+				"vendor": "cloudflare",
+				"displayName": "Cloudflare Workers AI",
+				"configuration": {
+					"type": "object",
+					"required": [
+						"accountId",
+						"apiToken"
+					],
+					"properties": {
+						"accountId": {
+							"type": "string",
+							"title": "Cloudflare Account ID",
+							"description": "Used by the direct Workers AI endpoint. You can still manage multiple accounts via Cloudflare AI: Manage Provider."
+						},
+						"apiToken": {
+							"type": "string",
+							"title": "Cloudflare API Token",
+							"description": "Token with Workers AI permissions.",
+							"secret": true
+						}
+					}
+				}
+			}
+		],
+		"commands": [
+			{
+				"command": "cloudflareAI.manage",
+				"title": "Cloudflare AI: Manage Provider"
+			},
+			{
+				"command": "cloudflareAI.status",
+				"title": "Cloudflare AI: Show Status"
+			},
+			{
+				"command": "cloudflareAI.clearAccountCache",
+				"title": "Cloudflare AI: Clear Account Cache"
+			},
+			{
+				"command": "cloudflareAI.removeFromLanguageModelsJson",
+				"title": "Cloudflare AI: Remove From Language Models JSON"
+			},
+			{
+				"command": "cloudflareAI.showRequestDiagnostics",
+				"title": "Cloudflare AI: Show Request Diagnostics"
+			},
+			{
+				"command": "cloudflareAI.clearRequestDiagnostics",
+				"title": "Cloudflare AI: Clear Request Diagnostics"
+			}
+		],
+		"configuration": {
+			"title": "Cloudflare AI for Copilot",
+			"properties": {
+				"cloudflareAI.syncedAccounts": {
+					"type": "array",
+					"default": [],
+					"markdownDescription": "Optional synced account list. Entries are stored in settings (plain text) and can sync across devices via VS Code Settings Sync.",
+					"items": {
+						"type": "object",
+						"required": [
+							"accountId",
+							"apiToken"
+						],
+						"properties": {
+							"accountId": {
+								"type": "string",
+								"description": "Cloudflare account ID"
+							},
+							"apiToken": {
+								"type": "string",
+								"description": "API token (stored in settings as plain text)"
+							},
+							"label": {
+								"type": "string",
+								"description": "Friendly display name"
+							}
+						}
+					}
+				},
+				"cloudflareAI.temperature": {
+					"type": "number",
+					"default": 0.2,
+					"minimum": 0,
+					"maximum": 2,
+					"description": "Sampling temperature."
+				},
+				"cloudflareAI.requestTimeoutSeconds": {
+					"type": "number",
+					"default": 600,
+					"minimum": 1,
+					"description": "Total request timeout in seconds."
+				},
+				"cloudflareAI.streamIdleTimeoutSeconds": {
+					"type": "number",
+					"default": 120,
+					"minimum": 1,
+					"description": "Abort stream after this many idle seconds."
+				},
+				"cloudflareAI.debugLogging": {
+					"type": "boolean",
+					"default": false,
+					"description": "Log raw SSE lines in Cloudflare AI output channel."
+				}
+			}
+		}
+	},
+	"activationEvents": [
+		"onLanguageModelChatProvider:cloudflare"
+	],
+	"main": "./out/extension.js",
+	"scripts": {
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"test": "npm run compile && vscode-test",
+		"prepackage": "npm run lint && npm run compile",
+		"package": "vsce package --allow-missing-repository",
+		"vscode:prepublish": "npm run compile"
+	},
+	"dependencies": {
+		"jsonc-parser": "^3.3.1"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.13.0",
+		"@stylistic/eslint-plugin": "^2.9.0",
+		"@types/mocha": "^10.0.6",
+		"@types/node": "^22",
+		"@types/vscode": "^1.103.0",
+		"@vscode/test-cli": "^0.0.11",
+		"@vscode/test-electron": "^2.5.2",
+		"@vscode/vsce": "^3.6.0",
+		"eslint": "^9.13.0",
+		"prettier": "^3.1.0",
+		"typescript": "^5.9.2",
+		"typescript-eslint": "^8.39.0"
+	}
+}
