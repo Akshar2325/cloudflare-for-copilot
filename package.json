@@ -3,7 +3,7 @@
 	"publisher": "akshar-bhesaniya",
 	"author": "akshar-bhesaniya",
 	"displayName": "Cloudflare AI for GitHub Copilot Chat",
-	"description": "Use Cloudflare Workers AI models directly in GitHub Copilot Chat with multi-account routing and configurable reasoning.",
+	"description": "Use Cloudflare Workers AI models (Kimi K2.7, GLM 5.2, Gemma 4, GPT-OSS) directly in GitHub Copilot Chat with reasoning support.",
 	"icon": "assets/logo.png",
 	"version": "1.0.0",
 	"engines": {
@@ -33,7 +33,7 @@
 		"commands": [
 			{
 				"command": "cloudflareAI.manage",
-				"title": "Cloudflare AI: Manage Provider"
+				"title": "Cloudflare AI: Manage Account"
 			},
 			{
 				"command": "cloudflareAI.status",
@@ -46,7 +46,7 @@
 				"cloudflareAI.accounts": {
 					"type": "array",
 					"default": [],
-					"markdownDescription": "Cloudflare accounts for multi-account routing. Stored in plain text and can sync via VS Code Settings Sync.",
+					"markdownDescription": "Cloudflare account credentials. Stored in plain text and can sync via VS Code Settings Sync.",
 					"items": {
 						"type": "object",
 						"required": [
@@ -81,12 +81,6 @@
 					"default": 600,
 					"minimum": 1,
 					"description": "Total request timeout in seconds."
-				},
-				"cloudflareAI.streamIdleTimeoutSeconds": {
-					"type": "number",
-					"default": 120,
-					"minimum": 1,
-					"description": "Abort stream after this many idle seconds."
 				},
 				"cloudflareAI.debugLogging": {
 					"type": "boolean",

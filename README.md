@@ -1,14 +1,14 @@
 # Cloudflare AI for GitHub Copilot Chat
 
-Use Cloudflare Workers AI models directly inside Copilot Chat with multi-account routing and configurable reasoning.
+Use Cloudflare Workers AI models directly inside Copilot Chat with configurable reasoning.
 
 ## Features
 
 - Direct Cloudflare Workers AI API integration (`/ai/v1/chat/completions`)
-- Multi-account support with automatic rotation and failover
 - Curated Cloudflare model list out of the box
 - Reasoning and thinking support (`reasoning_effort`)
 - Tool calling and vision passthrough when model supports it
+- Automatic quota exhaustion tracking (resets at midnight UTC)
 
 ## Supported Models
 
@@ -22,16 +22,9 @@ Use Cloudflare Workers AI models directly inside Copilot Chat with multi-account
 
 1. Install the extension.
 2. Open VS Code command palette (`Ctrl+Shift+P`).
-3. Run **Cloudflare AI: Manage Provider** → **Add Account**.
+3. Run **Cloudflare AI: Manage Account** → **Add / Update Account**.
 4. Enter your Cloudflare Account ID, API Token, and a label.
 5. Models will appear in the Copilot model picker.
-
-## Account Routing
-
-- Primary account is tried first.
-- Remaining accounts are tried in round-robin order.
-- `429` (rate limited) marks an account as exhausted until midnight UTC.
-- `401` / `403` automatically fail over to the next account.
 
 ## Development
 
@@ -48,7 +41,5 @@ Common scripts:
 - `npm run package` — build VSIX
 
 ## License
-
-MIT
 
 MIT

@@ -1,11 +1,27 @@
-.vscode/**
-.vscode-test/**
+# Source files (bundled by esbuild)
 src/**
-.gitignore
-.yarnrc
-webpack.config.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/.eslintrc.json
-**/*.map
 **/*.ts
+tsconfig.json
+
+# Build/dev tooling
+esbuild.js
+.eslintrc*
+.prettierrc*
+
+# Git & IDE
+.git/**
+.github/**
+.vscode/**
+*.code-workspace
+
+# Test files
+**/*.test.ts
+**/test/**
+
+# Misc
+.gitignore
+.DS_Store
+Thumbs.db
+*.vsix
+node_modules/**
+.claude/**

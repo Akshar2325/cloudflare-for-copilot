@@ -12,7 +12,7 @@ interface ProxyConfig {
 
 // ─── Proxy Server ───────────────────────────────────────────────────────────
 // Accepts OpenAI-compatible requests from VS Code's built-in customendpoint
-// handler and routes them through Cloudflare accounts.
+// handler and proxies them to Cloudflare Workers AI.
 
 export class CloudflareProxyServer implements vscode.Disposable {
 	private server: http.Server | undefined;
@@ -142,16 +142,8 @@ export class CloudflareProxyServer implements vscode.Disposable {
 	// ── GET /v1/models ──────────────────────────────────────────────────────
 
 	private async handleModelsRequest(res: http.ServerResponse): Promise<void> {
-		// Double-check that accounts are actually configured in settings
-		const configuredAccounts = vscode.workspace.getConfiguration("cloudflareAI").get<unknown[]>("accounts", []);
-		if (configuredAccounts.length === 0) {
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ object: "list", data: [] }));
-			return;
-		}
-
-		const accounts = await this.accountManager.getRoutableAccounts();
-		if (accounts.length === 0) {
+		const account = this.accountManager.getAccount();
+		if (!account || this.accountManager.isExhausted()) {
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ object: "list", data: [] }));
 			return;
@@ -204,12 +196,21 @@ export class CloudflareProxyServer implements vscode.Disposable {
 			return;
 		}
 
-		// Get routable accounts
-		const routableAccounts = await this.accountManager.getRoutableAccounts();
-		if (routableAccounts.length === 0) {
-			const message = "Today's credits ended for all accounts (resets at midnight UTC)";
+		// Get account
+		const account = this.accountManager.getAccount();
+		if (!account) {
 			res.writeHead(503, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: message }));
+			res.end(
+				JSON.stringify({
+					error: "No Cloudflare account configured. Use the 'Cloudflare AI: Configure Account' command.",
+				})
+			);
+			return;
+		}
+
+		if (this.accountManager.isExhausted()) {
+			res.writeHead(503, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Today's credits ended for your account (resets at midnight UTC)" }));
 			return;
 		}
 
@@ -232,77 +233,64 @@ export class CloudflareProxyServer implements vscode.Disposable {
 			}
 		}
 
-		// Try each account in rotation
-		let lastError: { message: string; status?: number } | undefined;
-		const summaries: string[] = [];
+		// Proxy to Cloudflare
+		const endpoint = `https://api.cloudflare.com/client/v4/accounts/${account.accountId}/ai/v1/chat/completions`;
+		const result = await this.proxyToCloudflare(endpoint, account.apiToken, cfPayload, requestTimeoutMs, debugLogging);
 
-		for (const { account, token: apiToken } of routableAccounts) {
-			summaries.push(`${account.accountId.slice(0, 8)}... (${account.label})`);
-			const endpoint = `https://api.cloudflare.com/client/v4/accounts/${account.accountId}/ai/v1/chat/completions`;
+		if (result.ok) {
+			// Stream response back to client
+			res.writeHead(200, {
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
+				"Access-Control-Allow-Origin": "*",
+			});
+			res.flushHeaders();
 
-			const result = await this.proxyToCloudflare(endpoint, apiToken, cfPayload, requestTimeoutMs, debugLogging);
+			// Forward SSE to client
+			const reader = result.stream.getReader();
+			const decoder = new TextDecoder();
 
-			if (result.ok) {
-				// Stream response back to client
-				res.writeHead(200, {
-					"Content-Type": "text/event-stream",
-					"Cache-Control": "no-cache",
-					Connection: "keep-alive",
-					"Access-Control-Allow-Origin": "*",
-				});
-				res.flushHeaders();
-
-				// Forward SSE to client — write each chunk immediately
-				const reader = result.stream.getReader();
-				const decoder = new TextDecoder();
-
-				try {
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) {
-							break;
-						}
-						const text = decoder.decode(value, { stream: true });
-						res.write(text);
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						break;
 					}
-				} catch {
-					// Connection closed
-				} finally {
-					res.end();
-					reader.releaseLock();
+					const text = decoder.decode(value, { stream: true });
+					res.write(text);
 				}
-
-				// Clear exhaustion on success
-				if (account.isExhausted) {
-					await this.accountManager.clearExhaustion(account.id);
-				}
-				return;
+			} catch {
+				// Connection closed
+			} finally {
+				res.end();
+				reader.releaseLock();
 			}
 
-			if (result.status === 429) {
-				await this.accountManager.markExhausted(account.id);
-				lastError = { message: `Today's credits ended for "${account.label}"`, status: 429 };
-				continue;
+			// Clear exhaustion on success
+			if (this.accountManager.isExhausted()) {
+				await this.accountManager.clearExhaustion();
 			}
-
-			if (result.status === 401 || result.status === 403) {
-				lastError = { message: `Invalid API token for "${account.label}"`, status: result.status };
-				continue;
-			}
-
-			if (result.status && result.status >= 500) {
-				lastError = { message: `Cloudflare error ${result.status} on "${account.label}"`, status: result.status };
-				continue;
-			}
-
-			lastError = { message: result.message, status: result.status };
+			return;
 		}
 
-		// All accounts failed
-		const errorMsg = lastError?.message ?? "All Cloudflare accounts failed";
-		const statusCode = lastError?.status ?? 503;
+		// Handle errors
+		if (result.status === 429) {
+			await this.accountManager.markExhausted();
+			res.writeHead(429, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: `Today's credits ended for "${account.label}" (resets at midnight UTC)` }));
+			return;
+		}
+
+		if (result.status === 401 || result.status === 403) {
+			res.writeHead(result.status, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: `Invalid API token for "${account.label}": ${result.message}` }));
+			return;
+		}
+
+		const statusCode = result.status ?? 503;
 		res.writeHead(statusCode, { "Content-Type": "application/json" });
-		res.end(JSON.stringify({ error: errorMsg, candidates: summaries }));
+		res.end(JSON.stringify({ error: `Cloudflare error: ${result.message}` }));
 	}
 
 	// ── Proxy to Cloudflare ─────────────────────────────────────────────────
