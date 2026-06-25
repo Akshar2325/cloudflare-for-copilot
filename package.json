@@ -5,7 +5,7 @@
 	"displayName": "Cloudflare AI for GitHub Copilot Chat",
 	"description": "Use Cloudflare Workers AI models (Kimi K2.7, GLM 5.2, Gemma 4, GPT-OSS) directly in GitHub Copilot Chat with reasoning support.",
 	"icon": "assets/logo.png",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"engines": {
 		"vscode": "^1.104.0"
 	},
