@@ -4,8 +4,6 @@ import type { CloudflareAccount } from "./types";
 const ACCOUNTS_KEY = "cf.accounts";
 const ACTIVE_ACCOUNT_KEY = "cf.activeAccountId";
 const ROUTING_CURSOR_KEY = "cf.routingCursor";
-const EXHAUSTION_RESET_MS = 3_600_000; // 1 hour
-
 function dedupeByAccountId(accounts: CloudflareAccount[], activeId?: string): CloudflareAccount[] {
 	const byAccountId = new Map<string, CloudflareAccount>();
 	for (const account of accounts) {
@@ -158,16 +156,18 @@ export class CloudflareAccountManager {
 	 */
 	async resetExhausted(): Promise<void> {
 		const accounts = this.loadAccounts();
+		const now = Date.now();
+		const todayUtc = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD
 		let changed = false;
 		for (const account of accounts) {
-			if (
-				account.isExhausted &&
-				account.exhaustedAt !== undefined &&
-				Date.now() - account.exhaustedAt > EXHAUSTION_RESET_MS
-			) {
-				account.isExhausted = false;
-				delete account.exhaustedAt;
-				changed = true;
+			if (account.isExhausted && account.exhaustedAt !== undefined) {
+				const exhaustedDay = new Date(account.exhaustedAt).toISOString().slice(0, 10);
+				// Reset if the UTC date has changed (quota resets at 00:00 UTC)
+				if (exhaustedDay < todayUtc) {
+					account.isExhausted = false;
+					delete account.exhaustedAt;
+					changed = true;
+				}
 			}
 		}
 		if (changed) {
@@ -201,8 +201,57 @@ export class CloudflareAccountManager {
 		}
 	}
 
+	/**
+	 * Load accounts, merging globalState (exhaustion/routing state) with
+	 * settings.json (the authoritative account list). This ensures manually
+	 * editing `cloudflareAI.accounts` in settings.json is always respected.
+	 */
 	private loadAccounts(): CloudflareAccount[] {
-		return this.context.globalState.get<CloudflareAccount[]>(ACCOUNTS_KEY) ?? [];
+		// Read the authoritative list from settings
+		const settingsAccounts = vscode.workspace
+			.getConfiguration("cloudflareAI")
+			.get<{ accountId: string; apiToken: string; label: string }[]>("accounts", []);
+
+		// Read persisted state (ids, exhaustion, routing)
+		const stored = this.context.globalState.get<CloudflareAccount[]>(ACCOUNTS_KEY) ?? [];
+		const storedByAccountId = new Map<string, CloudflareAccount>();
+		for (const a of stored) {
+			storedByAccountId.set(a.accountId.trim(), a);
+		}
+
+		// Merge: settings dictates which accounts exist; globalState provides id & exhaustion state
+		const merged: CloudflareAccount[] = [];
+		const seenIds = new Set<string>();
+		for (const s of settingsAccounts) {
+			const key = s.accountId.trim();
+			if (seenIds.has(key)) {
+				continue;
+			}
+			seenIds.add(key);
+			const existing = storedByAccountId.get(key);
+			if (existing) {
+				merged.push({
+					...existing,
+					accountId: key,
+					apiToken: s.apiToken,
+					label: s.label,
+				});
+			} else {
+				// New account added directly to settings — generate a stable id
+				merged.push({
+					id: crypto.randomUUID(),
+					accountId: key,
+					apiToken: s.apiToken,
+					label: s.label,
+					isExhausted: false,
+				});
+			}
+		}
+
+		// Persist merged list back to globalState so exhaustion state is tracked
+		this.context.globalState.update(ACCOUNTS_KEY, merged);
+
+		return merged;
 	}
 
 	private async saveAccounts(accounts: CloudflareAccount[]): Promise<void> {

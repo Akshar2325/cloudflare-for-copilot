@@ -9,8 +9,17 @@ function statusLabel(account: { isExhausted: boolean; exhaustedAt?: number }): s
 	if (!account.isExhausted || account.exhaustedAt === undefined) {
 		return "Active";
 	}
-	const remainingMs = Math.max(0, account.exhaustedAt + 3_600_000 - Date.now());
+	// Cloudflare daily neuron quota resets at 00:00 UTC
+	const now = Date.now();
+	const nextMidnight = new Date(now);
+	nextMidnight.setUTCHours(24, 0, 0, 0);
+	const remainingMs = Math.max(0, nextMidnight.getTime() - now);
 	const remainingMinutes = Math.ceil(remainingMs / 60_000);
+	if (remainingMinutes >= 60) {
+		const hours = Math.floor(remainingMinutes / 60);
+		const mins = remainingMinutes % 60;
+		return `Today's credits ended (resets in ~${hours}h ${mins}m)`;
+	}
 	return `Today's credits ended (resets in ~${remainingMinutes}m)`;
 }
 

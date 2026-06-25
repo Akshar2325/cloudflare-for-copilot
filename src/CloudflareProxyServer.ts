@@ -142,6 +142,14 @@ export class CloudflareProxyServer implements vscode.Disposable {
 	// ── GET /v1/models ──────────────────────────────────────────────────────
 
 	private async handleModelsRequest(res: http.ServerResponse): Promise<void> {
+		// Double-check that accounts are actually configured in settings
+		const configuredAccounts = vscode.workspace.getConfiguration("cloudflareAI").get<unknown[]>("accounts", []);
+		if (configuredAccounts.length === 0) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ object: "list", data: [] }));
+			return;
+		}
+
 		const accounts = await this.accountManager.getRoutableAccounts();
 		if (accounts.length === 0) {
 			res.writeHead(200, { "Content-Type": "application/json" });
