@@ -207,8 +207,9 @@ export class CloudflareProxyServer implements vscode.Disposable {
 		// Get routable accounts
 		const routableAccounts = await this.accountManager.getRoutableAccounts();
 		if (routableAccounts.length === 0) {
+			const message = "Today's credits ended for all accounts (resets at midnight UTC)";
 			res.writeHead(503, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "No Cloudflare accounts available" }));
+			res.end(JSON.stringify({ error: message }));
 			return;
 		}
 
