@@ -1,18 +1,16 @@
 # Cloudflare AI for GitHub Copilot Chat
 
-Use Cloudflare Workers AI directly inside Copilot Chat with BYOK credentials, dynamic model catalogs, and multi-account routing.
+Use Cloudflare Workers AI models directly inside Copilot Chat with multi-account routing and configurable reasoning.
 
-## Highlights
+## Features
 
-- Direct Cloudflare API integration (`/ai/v1/chat/completions`)
-- No local proxy, no local port configuration
-- Multiple Cloudflare accounts with rotation + failover
+- Direct Cloudflare Workers AI API integration (`/ai/v1/chat/completions`)
+- Multi-account support with automatic rotation and failover
 - Curated Cloudflare model list out of the box
-- Optional custom model catalog via settings
-- Reasoning controls (`thinkingMode`, `reasoningLevel`, per-model overrides)
+- Reasoning and thinking support (`reasoning_effort`)
 - Tool calling and vision passthrough when model supports it
 
-## Supported Curated Models
+## Supported Models
 
 - `@cf/moonshotai/kimi-k2.7-code` (tools, vision, reasoning)
 - `@cf/moonshotai/kimi-k2.6` (tools, vision, reasoning)
@@ -20,82 +18,37 @@ Use Cloudflare Workers AI directly inside Copilot Chat with BYOK credentials, dy
 - `@cf/google/gemma-4-26b-a4b-it` (tools, vision, reasoning)
 - `@cf/openai/gpt-oss-120b` (tools, reasoning)
 
-Capabilities are based on Cloudflare Workers AI model docs.
-
 ## Setup
 
-1. Install extension.
-2. Open command palette.
-3. Run `Cloudflare AI: Manage Provider`.
-4. Choose `Add Account`.
-5. Enter:
-   - Cloudflare Account ID
-   - API Token with Workers AI permissions
-   - Friendly label
-
-After at least one account is configured, Cloudflare models appear in Copilot's model picker.
+1. Install the extension.
+2. Open VS Code command palette (`Ctrl+Shift+P`).
+3. Run **Cloudflare AI: Manage Provider** → **Add Account**.
+4. Enter your Cloudflare Account ID, API Token, and a label.
+5. Models will appear in the Copilot model picker.
 
 ## Account Routing
 
-Routing behavior:
-
-- Primary account is tried first when configured.
+- Primary account is tried first.
 - Remaining accounts are tried in round-robin order.
-- `429` marks an account exhausted for ~1 hour.
-- `401` and `403` automatically fail over to next account.
-
-Use `Cloudflare AI: Manage Provider` to:
-
-- Add / remove accounts
-- Set primary account
-- Show account status
-- Configure thinking behavior
-
-## Reasoning and Thinking
-
-Settings:
-
-- `cloudflareAI.thinkingMode`: `off` | `auto` | `on`
-- `cloudflareAI.reasoningLevel`: `low` | `medium` | `high`
-- `cloudflareAI.modelReasoningOverrides`: per-model override map
-
-When reasoning is enabled for a reasoning-capable model, extension sends `reasoning_effort`.
-
-## Dynamic Model Catalog
-
-By default, curated models are used.
-
-To define your own catalog, set `cloudflareAI.modelCatalog`:
-
-```json
-"cloudflareAI.modelCatalog": [
-  {
-    "id": "cf-custom-kimi",
-    "cfModelId": "@cf/moonshotai/kimi-k2.7-code",
-    "displayName": "Cloudflare: Kimi K2.7 Custom",
-    "contextWindow": 262144,
-    "maxOutputTokens": 32768,
-    "supportsTools": true,
-    "supportsVision": true,
-    "supportsReasoning": true
-  }
-]
-```
+- `429` (rate limited) marks an account as exhausted until midnight UTC.
+- `401` / `403` automatically fail over to the next account.
 
 ## Development
 
 ```bash
-pnpm install
-pnpm run compile
+npm install
+npm run compile
 ```
 
 Common scripts:
 
-- `pnpm run watch`
-- `pnpm run lint`
-- `pnpm run format`
-- `pnpm run test`
+- `npm run watch` — watch mode
+- `npm run lint` — run ESLint
+- `npm run format` — run Prettier
+- `npm run package` — build VSIX
 
 ## License
+
+MIT
 
 MIT

@@ -1,21 +1,32 @@
 {
-	"name": "cloudflare-copilot",
-	"publisher": "your-publisher",
+	"name": "cloudflare-for-copilot",
+	"publisher": "akshar-bhesaniya",
+	"author": "akshar-bhesaniya",
 	"displayName": "Cloudflare AI for GitHub Copilot Chat",
 	"description": "Use Cloudflare Workers AI models directly in GitHub Copilot Chat with multi-account routing and configurable reasoning.",
 	"icon": "assets/logo.png",
-	"version": "0.2.0",
+	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.104.0"
 	},
 	"categories": [
 		"AI",
-		"Chat"
+		"Chat",
+		"Machine Learning",
+		"Programming Languages"
 	],
 	"galleryBanner": {
 		"color": "#100f11",
 		"theme": "dark"
 	},
+	"keywords": [
+		"language-models",
+		"cloudflare",
+		"workers-ai",
+		"copilot",
+		"ai",
+		"chat"
+	],
 	"homepage": "https://developers.cloudflare.com/workers-ai/",
 	"license": "MIT",
 	"contributes": {
@@ -106,7 +117,6 @@
 		"watch": "tsc -watch -p ./",
 		"lint": "eslint .",
 		"format": "prettier --write .",
-		"test": "npm run compile && vscode-test",
 		"prepackage": "npm run lint && npm run compile",
 		"package": "vsce package --allow-missing-repository",
 		"vscode:prepublish": "npm run compile"
@@ -115,11 +125,8 @@
 	"devDependencies": {
 		"@eslint/js": "^9.13.0",
 		"@stylistic/eslint-plugin": "^2.9.0",
-		"@types/mocha": "^10.0.6",
 		"@types/node": "^22",
 		"@types/vscode": "^1.103.0",
-		"@vscode/test-cli": "^0.0.11",
-		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.6.0",
 		"eslint": "^9.13.0",
 		"prettier": "^3.1.0",
