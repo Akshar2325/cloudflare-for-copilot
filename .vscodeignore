@@ -1,6 +1,14 @@
 .vscode/**
-.vscode-test/**
-src/**
+*.code-workspace
+
+# Test files
+**/*.test.ts
+**/test/**
+
+# Compiled output (tsc output - not used for packaging)
+out/**
+
+# Misc
 .gitignore
 .yarnrc
 webpack.config.js
