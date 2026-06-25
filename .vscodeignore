@@ -1,3 +1,16 @@
+# Source files (bundled by esbuild)
+src/**
+**/*.ts
+tsconfig.json
+
+# Build/dev tooling
+esbuild.js
+.eslintrc*
+.prettierrc*
+
+# Git & IDE
+.git/**
+.github/**
 .vscode/**
 *.code-workspace
 
@@ -10,10 +23,8 @@ out/**
 
 # Misc
 .gitignore
-.yarnrc
-webpack.config.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/.eslintrc.json
-**/*.map
-**/*.ts
+.DS_Store
+Thumbs.db
+*.vsix
+node_modules/**
+.claude/**
