@@ -21,8 +21,9 @@
 	"contributes": {
 		"languageModelChatProviders": [
 			{
-				"vendor": "cloudflare",
+				"vendor": "customendpoint",
 				"displayName": "Cloudflare Workers AI",
+				"apiType": "chat-completions",
 				"configuration": {
 					"type": "object",
 					"required": [
@@ -33,12 +34,12 @@
 						"accountId": {
 							"type": "string",
 							"title": "Cloudflare Account ID",
-							"description": "Used by the direct Workers AI endpoint. You can still manage multiple accounts via Cloudflare AI: Manage Provider."
+							"description": "Your Cloudflare account ID for Workers AI."
 						},
 						"apiToken": {
 							"type": "string",
 							"title": "Cloudflare API Token",
-							"description": "Token with Workers AI permissions.",
+							"description": "API token with Workers AI permissions.",
 							"secret": true
 						}
 					}
@@ -53,31 +54,15 @@
 			{
 				"command": "cloudflareAI.status",
 				"title": "Cloudflare AI: Show Status"
-			},
-			{
-				"command": "cloudflareAI.clearAccountCache",
-				"title": "Cloudflare AI: Clear Account Cache"
-			},
-			{
-				"command": "cloudflareAI.removeFromLanguageModelsJson",
-				"title": "Cloudflare AI: Remove From Language Models JSON"
-			},
-			{
-				"command": "cloudflareAI.showRequestDiagnostics",
-				"title": "Cloudflare AI: Show Request Diagnostics"
-			},
-			{
-				"command": "cloudflareAI.clearRequestDiagnostics",
-				"title": "Cloudflare AI: Clear Request Diagnostics"
 			}
 		],
 		"configuration": {
 			"title": "Cloudflare AI for Copilot",
 			"properties": {
-				"cloudflareAI.syncedAccounts": {
+				"cloudflareAI.accounts": {
 					"type": "array",
 					"default": [],
-					"markdownDescription": "Optional synced account list. Entries are stored in settings (plain text) and can sync across devices via VS Code Settings Sync.",
+					"markdownDescription": "Cloudflare accounts for multi-account routing. Stored in plain text and can sync via VS Code Settings Sync.",
 					"items": {
 						"type": "object",
 						"required": [
@@ -122,13 +107,13 @@
 				"cloudflareAI.debugLogging": {
 					"type": "boolean",
 					"default": false,
-					"description": "Log raw SSE lines in Cloudflare AI output channel."
+					"description": "Log raw SSE lines and request payloads in the Cloudflare AI output channel."
 				}
 			}
 		}
 	},
 	"activationEvents": [
-		"onLanguageModelChatProvider:cloudflare"
+		"onLanguageModelChatProvider:customendpoint"
 	],
 	"main": "./out/extension.js",
 	"scripts": {
@@ -141,9 +126,7 @@
 		"package": "vsce package --allow-missing-repository",
 		"vscode:prepublish": "npm run compile"
 	},
-	"dependencies": {
-		"jsonc-parser": "^3.3.1"
-	},
+	"dependencies": {},
 	"devDependencies": {
 		"@eslint/js": "^9.13.0",
 		"@stylistic/eslint-plugin": "^2.9.0",
