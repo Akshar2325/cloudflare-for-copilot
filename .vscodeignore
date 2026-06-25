@@ -18,6 +18,9 @@ esbuild.js
 **/*.test.ts
 **/test/**
 
+# Compiled output (tsc output - not used for packaging)
+out/**
+
 # Misc
 .gitignore
 .DS_Store

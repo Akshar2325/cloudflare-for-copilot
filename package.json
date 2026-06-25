@@ -27,7 +27,9 @@
 		"ai",
 		"chat"
 	],
-	"homepage": "https://developers.cloudflare.com/workers-ai/",
+	"repository": "https://github.com/Akshar2325/cloudflare-for-copilot",
+	"homepage": "https://github.com/Akshar2325/cloudflare-for-copilot#readme",
+	"bugs": "https://github.com/Akshar2325/cloudflare-for-copilot/issues",
 	"license": "MIT",
 	"contributes": {
 		"commands": [
@@ -105,23 +107,25 @@
 	"activationEvents": [
 		"onStartupFinished"
 	],
-	"main": "./out/extension.js",
+	"main": "./dist/extension.js",
 	"scripts": {
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
+		"vscode:prepublish": "npm run clean && node esbuild.js --production",
+		"compile": "node esbuild.js",
+		"watch": "node esbuild.js --watch",
 		"lint": "eslint .",
 		"format": "prettier --write .",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist",
 		"prepackage": "npm run lint && npm run compile",
-		"package": "vsce package --allow-missing-repository",
-		"vscode:prepublish": "npm run compile"
+		"package": "vsce package"
 	},
-	"dependencies": {},
 	"devDependencies": {
 		"@eslint/js": "^9.13.0",
 		"@stylistic/eslint-plugin": "^2.9.0",
 		"@types/node": "^22",
 		"@types/vscode": "^1.103.0",
 		"@vscode/vsce": "^3.6.0",
+		"esbuild": "^0.27.7",
 		"eslint": "^9.13.0",
 		"prettier": "^3.1.0",
 		"typescript": "^5.9.2",

@@ -40,6 +40,6 @@ Common scripts:
 - `npm run format` — run Prettier
 - `npm run package` — build VSIX
 
-## License
+## 📄 License
 
-MIT
+MIT — see [LICENSE](LICENSE)

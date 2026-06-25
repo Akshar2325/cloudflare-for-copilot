@@ -13,6 +13,8 @@ export default tseslint.config(
 		ignores: [
 			'.vscode-test',
 			'out',
+			'dist',
+			'esbuild.js',
 			'**/*.d.ts'
 		]
 	},
