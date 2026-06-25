@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { CloudflareAccountManager } from "./accountManager";
 import { getCloudflareModels } from "./models";
-import { CloudflareLanguageModelChatProvider } from "./provider";
+import { CloudflareProxyServer } from "./CloudflareProxyServer";
+import { writeCloudflareModelsToChatLanguageModels, removeCloudflareModelsFromChatLanguageModels } from "./utils";
 import type { CloudflareAccount } from "./types";
 
 function statusLabel(account: { isExhausted: boolean; exhaustedAt?: number }): string {
@@ -13,10 +14,16 @@ function statusLabel(account: { isExhausted: boolean; exhaustedAt?: number }): s
 	return `Today's credits ended (resets in ~${remainingMinutes}m)`;
 }
 
-async function addAccount(
-	manager: CloudflareAccountManager,
-	provider: CloudflareLanguageModelChatProvider
-): Promise<void> {
+function syncModels(proxyPort: number, manager: CloudflareAccountManager): void {
+	const accounts = manager.getAccounts();
+	if (accounts.length > 0) {
+		writeCloudflareModelsToChatLanguageModels(proxyPort);
+	} else {
+		removeCloudflareModelsFromChatLanguageModels();
+	}
+}
+
+async function addAccount(manager: CloudflareAccountManager, proxyPort: number): Promise<void> {
 	const accountId = await vscode.window.showInputBox({
 		title: "Cloudflare Account ID",
 		prompt: "Enter your Cloudflare account ID",
@@ -47,13 +54,10 @@ async function addAccount(
 	}
 
 	await manager.addAccount(accountId.trim(), apiToken.trim(), label.trim());
-	provider.refreshModels();
+	syncModels(proxyPort, manager);
 }
 
-async function removeAccount(
-	manager: CloudflareAccountManager,
-	provider: CloudflareLanguageModelChatProvider
-): Promise<void> {
+async function removeAccount(manager: CloudflareAccountManager, proxyPort: number): Promise<void> {
 	const accounts = manager.getAccounts();
 	if (accounts.length === 0) {
 		vscode.window.showInformationMessage("No accounts configured.");
@@ -79,7 +83,7 @@ async function removeAccount(
 
 	try {
 		await manager.removeAccount(selected.id);
-		provider.refreshModels();
+		syncModels(proxyPort, manager);
 		vscode.window.showInformationMessage(`Removed account "${selected.label}".`);
 	} catch (error) {
 		vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error));
@@ -130,13 +134,29 @@ function showAccounts(outputChannel: vscode.OutputChannel, manager: CloudflareAc
 	outputChannel.show(true);
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	const outputChannel = vscode.window.createOutputChannel("Cloudflare AI");
 	context.subscriptions.push(outputChannel);
 
 	const accountManager = new CloudflareAccountManager(context);
-	const provider = new CloudflareLanguageModelChatProvider(accountManager, outputChannel);
-	context.subscriptions.push(vscode.lm.registerLanguageModelChatProvider("customendpoint", provider));
+	const proxy = new CloudflareProxyServer(accountManager, outputChannel);
+	context.subscriptions.push(proxy);
+
+	// Start the proxy server
+	let proxyPort: number;
+	try {
+		proxyPort = await proxy.start();
+		outputChannel.appendLine(`[proxy] Started on port ${proxyPort}`);
+	} catch (error) {
+		outputChannel.appendLine(`[proxy] Failed to start: ${error}`);
+		void vscode.window.showErrorMessage(
+			`Cloudflare AI proxy failed to start: ${error instanceof Error ? error.message : error}`
+		);
+		return;
+	}
+
+	// Write models if accounts exist
+	syncModels(proxyPort, accountManager);
 
 	// ── Commands ─────────────────────────────────────────────────────────────
 
@@ -152,10 +172,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
 			switch (action) {
 				case "Add Account":
-					await addAccount(accountManager, provider);
+					await addAccount(accountManager, proxyPort);
 					break;
 				case "Remove Account":
-					await removeAccount(accountManager, provider);
+					await removeAccount(accountManager, proxyPort);
 					break;
 				case "Set Primary Account":
 					await setPrimaryAccount(accountManager);
@@ -165,7 +185,7 @@ export function activate(context: vscode.ExtensionContext): void {
 					break;
 				case "Clear Exhaustion":
 					await accountManager.clearAllExhaustion();
-					provider.refreshModels();
+					syncModels(proxyPort, accountManager);
 					vscode.window.showInformationMessage("Cloudflare AI: All account exhaustion states cleared.");
 					break;
 			}
@@ -193,7 +213,9 @@ export function activate(context: vscode.ExtensionContext): void {
 	);
 	context.subscriptions.push({ dispose: () => clearInterval(timer) });
 
-	outputChannel.appendLine(`Cloudflare AI activated. ${getCloudflareModels().length} models available.`);
+	outputChannel.appendLine(
+		`Cloudflare AI activated. ${getCloudflareModels().length} models available. Proxy on port ${proxyPort}.`
+	);
 }
 
 export function deactivate(): void {}

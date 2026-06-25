@@ -1,10 +1,9 @@
 import * as assert from "assert";
-import * as vscode from "vscode";
-import { CloudflareLanguageModelChatProvider } from "../provider";
+import { CloudflareProxyServer } from "../CloudflareProxyServer";
 import { CloudflareAccountManager } from "../accountManager";
-import { tryParseJSONObject } from "../utils";
+import { tryParseJSONObject, getChatLanguageModelsPath } from "../utils";
 
-function makeProvider(): CloudflareLanguageModelChatProvider {
+function makeMockAccountManager(): CloudflareAccountManager {
 	const mockContext = {
 		globalState: {
 			get: () => undefined,
@@ -18,9 +17,12 @@ function makeProvider(): CloudflareLanguageModelChatProvider {
 			delete: async () => {},
 			onDidChange: (_listener: unknown) => ({ dispose() {} }),
 		},
-	} as unknown as vscode.ExtensionContext;
-	const accountManager = new CloudflareAccountManager(mockContext);
-	const outputChannel = {
+	} as unknown as import("vscode").ExtensionContext;
+	return new CloudflareAccountManager(mockContext);
+}
+
+function makeMockOutputChannel(): import("vscode").OutputChannel {
+	return {
 		appendLine: () => {},
 		append: () => {},
 		show: () => {},
@@ -29,66 +31,76 @@ function makeProvider(): CloudflareLanguageModelChatProvider {
 		replace: () => {},
 		clear: () => {},
 		name: "test",
-	} as unknown as vscode.OutputChannel;
-	return new CloudflareLanguageModelChatProvider(accountManager, outputChannel);
+	} as unknown as import("vscode").OutputChannel;
 }
 
-suite("Cloudflare Chat Provider Extension", () => {
-	suite("provider", () => {
-		test("prepareLanguageModelChatInformation returns array", async () => {
-			const provider = makeProvider();
+suite("Cloudflare AI Extension", () => {
+	suite("proxy server", () => {
+		test("start and stop", async () => {
+			const am = makeMockAccountManager();
+			const oc = makeMockOutputChannel();
+			const proxy = new CloudflareProxyServer(am, oc);
 
-			const infos = await provider.prepareLanguageModelChatInformation(
-				{ silent: true },
-				new vscode.CancellationTokenSource().token
-			);
-			assert.ok(Array.isArray(infos));
+			assert.equal(proxy.running, false);
+
+			const port = await proxy.start();
+			assert.ok(typeof port === "number" && port > 0);
+			assert.equal(proxy.running, true);
+			assert.equal(proxy.port, port);
+
+			await proxy.stop();
+			assert.equal(proxy.running, false);
 		});
 
-		test("provideTokenCount counts simple string", async () => {
-			const provider = makeProvider();
+		test("health endpoint", async () => {
+			const am = makeMockAccountManager();
+			const oc = makeMockOutputChannel();
+			const proxy = new CloudflareProxyServer(am, oc);
 
-			const est = await provider.provideTokenCount(
-				{
-					id: "m",
-					name: "m",
-					family: "cloudflare",
-					version: "1.0.0",
-					maxInputTokens: 1000,
-					maxOutputTokens: 1000,
-					capabilities: {},
-				} as unknown as vscode.LanguageModelChatInformation,
-				"hello world",
-				new vscode.CancellationTokenSource().token
-			);
-			assert.equal(typeof est, "number");
-			assert.ok(est > 0);
+			const port = await proxy.start();
+
+			const res = await fetch(`http://127.0.0.1:${port}/health`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { status: string };
+			assert.equal(body.status, "ok");
+
+			await proxy.stop();
 		});
 
-		test("provideLanguageModelChatResponse throws without account", async () => {
-			const provider = makeProvider();
+		test("GET /v1/models returns empty array with no accounts", async () => {
+			const am = makeMockAccountManager();
+			const oc = makeMockOutputChannel();
+			const proxy = new CloudflareProxyServer(am, oc);
 
-			let threw = false;
-			try {
-				await provider.provideLanguageModelChatResponse(
-					{
-						id: "m",
-						name: "m",
-						family: "cloudflare",
-						version: "1.0.0",
-						maxInputTokens: 1000,
-						maxOutputTokens: 1000,
-						capabilities: {},
-					} as unknown as vscode.LanguageModelChatInformation,
-					[],
-					{} as unknown as vscode.LanguageModelChatRequestHandleOptions,
-					{ report: () => {} },
-					new vscode.CancellationTokenSource().token
-				);
-			} catch {
-				threw = true;
-			}
-			assert.ok(threw);
+			const port = await proxy.start();
+
+			const res = await fetch(`http://127.0.0.1:${port}/v1/models`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { object: string; data: unknown[] };
+			assert.equal(body.object, "list");
+			assert.ok(Array.isArray(body.data));
+			assert.equal(body.data.length, 0);
+
+			await proxy.stop();
+		});
+
+		test("chat completions returns 503 with no accounts", async () => {
+			const am = makeMockAccountManager();
+			const oc = makeMockOutputChannel();
+			const proxy = new CloudflareProxyServer(am, oc);
+
+			const port = await proxy.start();
+
+			const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ model: "cf-kimi-k2.7-code", messages: [{ role: "user", content: "hi" }] }),
+			});
+			assert.equal(res.status, 503);
+			const body = (await res.json()) as { error: string };
+			assert.ok(body.error.includes("No Cloudflare accounts"));
+
+			await proxy.stop();
 		});
 	});
 
@@ -97,6 +109,14 @@ suite("Cloudflare Chat Provider Extension", () => {
 			assert.deepEqual(tryParseJSONObject('{"a":1}'), { ok: true, value: { a: 1 } });
 			assert.deepEqual(tryParseJSONObject("[1,2,3]"), { ok: false });
 			assert.deepEqual(tryParseJSONObject("not json"), { ok: false });
+		});
+	});
+
+	suite("utils/chatLanguageModels", () => {
+		test("getChatLanguageModelsPath returns a string", () => {
+			const p = getChatLanguageModelsPath();
+			assert.ok(typeof p === "string");
+			assert.ok(p!.endsWith("chatLanguageModels.json"));
 		});
 	});
 });

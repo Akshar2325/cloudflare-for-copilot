@@ -19,33 +19,6 @@
 	"homepage": "https://developers.cloudflare.com/workers-ai/",
 	"license": "MIT",
 	"contributes": {
-		"languageModelChatProviders": [
-			{
-				"vendor": "customendpoint",
-				"displayName": "Cloudflare Workers AI",
-				"apiType": "chat-completions",
-				"configuration": {
-					"type": "object",
-					"required": [
-						"accountId",
-						"apiToken"
-					],
-					"properties": {
-						"accountId": {
-							"type": "string",
-							"title": "Cloudflare Account ID",
-							"description": "Your Cloudflare account ID for Workers AI."
-						},
-						"apiToken": {
-							"type": "string",
-							"title": "Cloudflare API Token",
-							"description": "API token with Workers AI permissions.",
-							"secret": true
-						}
-					}
-				}
-			}
-		],
 		"commands": [
 			{
 				"command": "cloudflareAI.manage",
@@ -108,12 +81,24 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Log raw SSE lines and request payloads in the Cloudflare AI output channel."
+				},
+				"cloudflareAI.proxyHost": {
+					"type": "string",
+					"default": "127.0.0.1",
+					"description": "Host address for the local proxy server."
+				},
+				"cloudflareAI.proxyPort": {
+					"type": "number",
+					"default": 9300,
+					"minimum": 1024,
+					"maximum": 65535,
+					"description": "Starting port for the local proxy server (will try next if in use)."
 				}
 			}
 		}
 	},
 	"activationEvents": [
-		"onLanguageModelChatProvider:customendpoint"
+		"onStartupFinished"
 	],
 	"main": "./out/extension.js",
 	"scripts": {
